@@ -49,12 +49,19 @@ $subPages = Get-ChildItem -Path '%SUBPAGES_DIR%' -Filter '*.html';
 $xlsxLinks = @();
 foreach ($page in $subPages) {
     $content = Get-Content $page.FullName -Raw;
-    $matches = [regex]::Matches($content, 'http://www2.census.gov/programs-surveys/demo/tables/hhp/[^"']+\.xlsx');
+    $matches = [regex]::Matches($content, 'http://www2.census.gov/programs-surveys/demo/tables/hhp/(\d{4})/[^"']+\.xlsx');
     foreach ($match in $matches) { $xlsxLinks += $match.Value; }
 }
 $xlsxLinks | Sort-Object -Unique | Set-Content -Path '%BASE_DIR%\xlsx_links.txt'"
 
-:: Download the extracted .xlsx files
-for /f %%U in (%BASE_DIR%\xlsx_links.txt) do wget -nc --no-check-certificate -P "%XLSX_DIR%" %%U
+:: Download the extracted .xlsx files into year-specific folders
+for /f "usebackq delims=" %%U in (%BASE_DIR%\xlsx_links.txt) do (
+    for /f "tokens=6 delims=/" %%Y in ("%%U") do (
+        set YEAR=%%Y
+        set DEST_DIR=%BASE_DIR%\!YEAR!
+        if not exist "!DEST_DIR!" mkdir "!DEST_DIR!"
+        wget -nc --no-check-certificate -P "!DEST_DIR!" "%%U"
+    )
+)
 
 endlocal
